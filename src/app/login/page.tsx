@@ -1,4 +1,23 @@
 import { LoginForm } from "@/components/LoginForm";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Login | ZlsChat - Chat em tempo real",
+    description: "Entre na ZlsChat e comece a conversar em tempo real de forma segura e intuitiva. Conecte-se com seus amigos e grupos hoje mesmo.",
+    keywords: [
+        "chat em tempo real",
+        "bate-papo online",
+        "login ZlsChat",
+        "mensagens seguras",
+        "chat seguro",
+        "comunicação instantânea",
+    ],
+    openGraph: {
+        siteName: "ZlsChat",
+        locale: "pt_BR",
+        type: "website",
+    }
+}
 
 export default function LoginPage() {
     return (

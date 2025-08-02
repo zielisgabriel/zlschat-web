@@ -1,4 +1,23 @@
 import { RegisterForm } from "@/components/RegisterForm";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Cadastro | ZlsChat - Chat em tempo real",
+    description: "Crie sua conta gratuita no ZlsChat e comece a conversar em tempo real de forma segura e intuitiva. Conecte-se com seus amigos e grupos hoje mesmo.",
+    keywords: [
+        "chat em tempo real",
+        "bate-papo online",
+        "cadastro ZlsChat",
+        "mensagens seguras",
+        "chat seguro",
+        "comunicação instantânea",
+    ],
+    openGraph: {
+        siteName: "ZlsChat",
+        locale: "pt_BR",
+        type: "website",
+    }
+}
 
 export default function RegisterPage() {
     return (
