@@ -4,8 +4,10 @@ import { ChatRoom } from "@/@types/ChatRoom";
 import { Message } from "@/@types/Message";
 import { PUBLIC_PATHS } from "@/environments/PUBLIC_PATHS";
 import { api } from "@/lib/api";
+import { Client } from "@stomp/stompjs";
 import { usePathname } from "next/navigation";
-import { createContext, ReactNode, useEffect, useState } from "react";
+import { createContext, ReactNode, RefObject, useEffect, useRef, useState } from "react";
+import SockJS from "sockjs-client";
 
 interface ChatOpenType {
     chatRoom: ChatRoom,
@@ -13,15 +15,17 @@ interface ChatOpenType {
 }
 
 interface ApplicationContextProps {
-    profile: User | null,
-    chatAndMessagesInChat: ChatOpenType | null
-    onLoadChatAndMessagesInChat: (chatRoomId: string) => Promise<void>
+    profile: User | null;
+    chatAndMessagesInChat: ChatOpenType | null;
+    onLoadChatAndMessagesInChat: (chatRoomId: string) => Promise<void>;
+    clientRef: RefObject<Client | null>;
 }
 
 export const ApplicationContext = createContext({} as ApplicationContextProps);
 
 export function ApplicationContextProvider({ children }: { children: ReactNode }) {
     const [profile, setProfile] = useState<User | null>(null);
+    const clientRef = useRef<Client | null>(null);
     const [chatAndMessagesInChat, setChatAndMessagesInChat] = useState<ChatOpenType | null>(null);
     const pathname = usePathname();
 
@@ -45,8 +49,24 @@ export function ApplicationContextProvider({ children }: { children: ReactNode }
         }
     }, [pathname]);
 
+    useEffect(() => {
+        const client = new Client({
+            brokerURL: undefined,
+            webSocketFactory: () => new SockJS(process.env.NEXT_PUBLIC_API_WEBSOCKET_URL!),
+            reconnectDelay: 5000,
+        });
+
+        client.activate();
+        clientRef.current = client;
+
+        return () => {
+            client.deactivate();
+            clientRef.current = null;
+        }
+    }, []);
+
     return (
-        <ApplicationContext.Provider value={{profile, chatAndMessagesInChat, onLoadChatAndMessagesInChat}}>
+        <ApplicationContext.Provider value={{profile, clientRef, chatAndMessagesInChat, onLoadChatAndMessagesInChat}}>
             { children }
         </ApplicationContext.Provider>
     );
