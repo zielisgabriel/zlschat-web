@@ -5,21 +5,22 @@ import { ApplicationContext } from "@/contexts/ApplicationContext";
 import dayjs from "dayjs";
 import { useContext, useEffect, useRef, useState } from "react";
 import { SendMessageForm } from "./SendMessageForm";
-import { Client, IMessage } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
-import { toast } from "sonner";
+import { IMessage } from "@stomp/stompjs";
+import { Typing } from "@/@types/Typing";
+import { ScrollArea } from "./ui/scroll-area";
+import { motion, AnimatePresence } from "framer-motion";
+import { Spinner } from "./ui/shadcn-io/spinner";
+import clsx from "clsx";
 
 export function ChatBox() {
-    const clientRef = useRef<Client | null>(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
     const [messages, setMessages] = useState<Message[]>([]);
-    const { profile, chatAndMessagesInChat } = useContext(ApplicationContext);
-    
-    function onSendMessage(message: string) {
-        if (!clientRef.current) return;
+    const [typing, setTyping] = useState<Typing | null>(null);
+    const { profile, chatAndMessagesInChat, clientRef } = useContext(ApplicationContext);
 
-        if (!profile || !chatAndMessagesInChat) {
-            toast.error("Erro ao enviar mensagem");
-            return;
+    function onSendMessage(message: string) {
+        if (!profile || !chatAndMessagesInChat || !clientRef.current) {
+            throw new Error("Erro ao enviar mensagem");
         };
 
         const messageToSend: Message = {
@@ -38,89 +39,110 @@ export function ChatBox() {
     }
 
     useEffect(() => {
-        setMessages(chatAndMessagesInChat?.messages || []);
-
-        const sockJs = new SockJS("http://localhost:8080/ws");
-        const client = new Client({
-            brokerURL: undefined,
-            webSocketFactory: () => sockJs,
-            onConnect: () => {
-                console.log("Websocket connected");
-                
-                client.subscribe("/user/queue/messages", (message: IMessage) => {
-                    const chatMessage = JSON.parse(message.body) as Message;
-                    setMessages(prevMessages => [...prevMessages, chatMessage]);
-                });
-            },
-            onDisconnect: () => {
-                console.log("Websocket disconnected");
-            },
+        if (!chatAndMessagesInChat || !clientRef.current) return;
+        const messagesSubscribe = clientRef.current.subscribe("/user/queue/messages", (message: IMessage) => {
+            const messageReceived: Message = JSON.parse(message.body);
+            setMessages(prevMessages => [...prevMessages, messageReceived]);
         });
-        
-        client.activate();
-        clientRef.current = client;
-        
+        setMessages(chatAndMessagesInChat.messages || []);
         return () => {
-            client.deactivate();
-            clientRef.current = null;
-        };
+            messagesSubscribe.unsubscribe();
+        }
     }, [chatAndMessagesInChat]);
 
-    if (!chatAndMessagesInChat) return null;
+    useEffect(() => {
+        if (!profile || !chatAndMessagesInChat || !clientRef.current) return;
+        const chatRoomId = chatAndMessagesInChat.chatRoom.id!;
+
+        const typingSubscribe = clientRef.current.subscribe(`/topic/typing/${chatRoomId}`, (message: IMessage) => {
+            const typingReceived: Typing = JSON.parse(message.body);
+            if (typingReceived.chatRoomId === chatRoomId && typingReceived.username !== profile.username) {
+                setTyping(typingReceived);
+            }
+        });
+
+        return () => {
+            typingSubscribe?.unsubscribe();
+        }
+    }, [chatAndMessagesInChat?.chatRoom.id]);
+
+    useEffect(() => {
+        scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, typing?.typing]);
 
     return (
-        <section className="grid grid-rows-[auto_0.08fr] gap-4 w-full p-4">
-            <div className="flex flex-col gap-2 w-full justify-end">
-                {
-                    messages.map((message, index) => {
-                        if (message.senderUsername === profile?.username) {
-                        return (
-                            <div key={index} className="flex justify-end">
-                            <div className="flex flex-col bg-slate-600 p-2 rounded-md">
-                                <div>
-                                    <p className="text-sm text-foreground/70 font-semibold">
-                                        {message.senderUsername}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p>{message.content}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-foreground/70">
-                                        {dayjs(message.sendAt).format("HH:mm")}
-                                    </p>
-                                </div>
-                            </div>
-                            </div>
-                        )
-                        } else {
-                        return (
-                            <div key={index} className="flex justify-start">
-                                <div className="flex flex-col bg-slate-800 p-2 rounded-md">
-                                    <div>
-                                        <p className="text-sm text-foreground/70 font-semibold">
+        <section className="grid grid-rows-[90vh_auto] h-screen w-full ">
+            <ScrollArea className="w-full h-full overflow-y-auto">
+                <div className="relative flex flex-col justify-end min-h-[90vh] px-4 pt-0 pb-4 mt-4">
+                    {
+                        messages.map((message, index) => {
+                            const isOwnMessage = message.senderUsername === profile?.username;
+
+                            return (
+                                <div key={index} className={clsx(
+                                    "flex mb-2",
+                                    isOwnMessage ? "justify-end" : "justify-start"
+                                )}>
+                                    <div className={clsx(
+                                        "flex flex-col p-2 rounded-md max-w-[80%]",
+                                        isOwnMessage ? "bg-slate-600" : "bg-slate-800",
+                                    )}>
+                                        <p className="text-sm text-white/70 font-semibold">
                                             {message.senderUsername}
                                         </p>
-                                    </div>
-                                    <div>
-                                        <p>
+                                        <p className="text-white">
                                             {message.content}
                                         </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-foreground/70 text-end">
+                                        <p className={clsx(
+                                            "text-sm text-white/70",
+                                            isOwnMessage && "text-end"
+                                        )}>
                                             {dayjs(message.sendAt).format("HH:mm")}
                                         </p>
                                     </div>
                                 </div>
-                            </div>
-                        )
-                        }
-                    })
-                }
-            </div>
+                            );
+                        })
+                    }
 
-            <SendMessageForm onSend={onSendMessage} />
+                    <div>
+                        <AnimatePresence mode="wait">
+                            {
+                                typing?.typing && typing.username !== profile?.username && (
+                                    <motion.div
+                                        initial={{
+                                            display: "block",
+                                            opacity: 0,
+                                        }}
+                                        animate={{
+                                            display: "block",
+                                            opacity: 1,
+                                        }}
+                                        exit={{
+                                            display: "none",
+                                            opacity: 0,
+                                        }}
+                                        className="w-fit bg-slate-800 p-2 rounded-md"
+                                    >
+                                        <Spinner variant="ellipsis" />
+                                    </motion.div>
+                                )
+                            }
+
+                        </AnimatePresence>
+
+                        <div ref={scrollRef} />
+                    </div>
+                </div>
+
+
+            </ScrollArea>
+
+            {
+                chatAndMessagesInChat && (
+                    <SendMessageForm onSend={onSendMessage} />
+                )
+            }
         </section>
     );
 }
