@@ -4,10 +4,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem } from "./ui/form";
-import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { useContext } from "react";
+import { useContext, useEffect, useRef } from "react";
 import { ApplicationContext } from "@/contexts/ApplicationContext";
+import { Textarea } from "./ui/textarea";
+import { SendHorizonalIcon } from "lucide-react";
+import { useDebounceValue } from "@/hooks/useDebounceValue";
 
 const sendMessageFormSchema = z.object({
     message: z.string().min(1),
@@ -20,13 +22,15 @@ interface SendMessageFormProps {
 }
 
 export function SendMessageForm({ onSend }: SendMessageFormProps) {
-    const { profile, chatAndMessagesInChat } = useContext(ApplicationContext);
+    const { profile, chatAndMessagesInChat, clientRef } = useContext(ApplicationContext);
     const form = useForm<SendMessageFormType>({
         resolver: zodResolver(sendMessageFormSchema),
         defaultValues: {
             message: "",
-        }
+        },
     });
+    const debouncedMessage = useDebounceValue(form.watch("message"), 200);
+    const lastStateTyping = useRef<boolean>(false);
 
     async function onSubmitMessage({ message }: SendMessageFormType) {
         if (!chatAndMessagesInChat || !profile) return;
@@ -34,27 +38,45 @@ export function SendMessageForm({ onSend }: SendMessageFormProps) {
         form.reset();
     }
 
+    useEffect(() => {
+        if (!chatAndMessagesInChat || !profile || !clientRef.current) return;
+        const isTyping = debouncedMessage.trim().length > 0;
+        
+        if (lastStateTyping.current === isTyping) return;
+        lastStateTyping.current = isTyping;
+
+        clientRef.current.publish({
+            destination: "/app/typing",
+            body: JSON.stringify({
+                typing: isTyping,
+                chatRoomId: chatAndMessagesInChat.chatRoom.id!,
+                username: profile.username,
+            }),
+        })
+    }, [debouncedMessage]);
+
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmitMessage)} className="flex gap-2 w-full">
+            <form onSubmit={form.handleSubmit(onSubmitMessage)} className="flex gap-2 w-full p-4 pt-0">
                 <FormField
                     control={form.control}
                     name="message"
                     render={({ field }) => (
                         <FormItem className="flex-1">
                             <FormControl>
-                                <Input
+                                <Textarea
+                                    autoFocus
                                     autoComplete="off"
-                                    placeholder="Insira sua mensagem"
                                     {...field}
-                                    className="h-full"
+                                    className="h-full w-full resize-none outline-none border-none bg-transparent text-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
                                 />
                             </FormControl>
                         </FormItem>
                     )}
                 />
-                <Button type="submit" className="h-full w-32 cursor-pointer">
+                <Button type="submit" className="h-full cursor-pointer" onKeyDown={(e) => e.key === "Enter" && form.handleSubmit(onSubmitMessage)()}>
                     Enviar
+                    <SendHorizonalIcon className="w-6 h-6" />
                 </Button>
             </form>
         </Form>
