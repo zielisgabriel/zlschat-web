@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { SidebarMenuButton, SidebarMenuItem } from "./ui/sidebar";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { ApplicationContext } from "@/contexts/ApplicationContext";
+import clsx from "clsx";
 
 interface ChatListInSidebarProps {
     onLoadChatRoom: (chatId: string) => Promise<void>;
@@ -14,7 +15,7 @@ interface ChatListInSidebarProps {
 
 export function ChatListInSidebar(props: ChatListInSidebarProps) {
     const [chats, setChats] = useState<ChatRoom[]>([]);
-    const {profile} = useContext(ApplicationContext);
+    const {profile, chatAndMessagesInChat} = useContext(ApplicationContext);
 
     async function onFetchChats() {
         try {
@@ -46,7 +47,12 @@ export function ChatListInSidebar(props: ChatListInSidebarProps) {
 
     return (
         chats.map((chat, index) => (
-            <SidebarMenuItem key={index}>
+            <SidebarMenuItem
+                key={index}
+                className={clsx(
+                "rounded-md",
+                chat.id === chatAndMessagesInChat?.chatRoom.id && "bg-secondary"
+            )}>
                 <SidebarMenuButton asChild>
                     <button className="cursor-pointer" onClick={async () => await props.onLoadChatRoom(chat.id!)}>
                         <Avatar>

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem } from "./ui/form";
 import { Button } from "./ui/button";
-import { useContext, useEffect, useRef } from "react";
+import React, { useContext, useEffect, useRef } from "react";
 import { ApplicationContext } from "@/contexts/ApplicationContext";
 import { Textarea } from "./ui/textarea";
 import { SendHorizonalIcon } from "lucide-react";
@@ -38,6 +38,13 @@ export function SendMessageForm({ onSend }: SendMessageFormProps) {
         form.reset();
     }
 
+    function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            form.handleSubmit(onSubmitMessage)();
+        }
+    }
+
     useEffect(() => {
         if (!chatAndMessagesInChat || !profile || !clientRef.current) return;
         const isTyping = debouncedMessage.trim().length > 0;
@@ -67,14 +74,16 @@ export function SendMessageForm({ onSend }: SendMessageFormProps) {
                                 <Textarea
                                     autoFocus
                                     autoComplete="off"
+                                    placeholder="Digite sua mensagem..."
                                     {...field}
+                                    onKeyDown={handleKeyDown}
                                     className="h-full w-full resize-none outline-none border-none bg-transparent text-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
                                 />
                             </FormControl>
                         </FormItem>
                     )}
                 />
-                <Button type="submit" className="h-full cursor-pointer" onKeyDown={(e) => e.key === "Enter" && form.handleSubmit(onSubmitMessage)()}>
+                <Button type="submit" className="h-full cursor-pointer">
                     Enviar
                     <SendHorizonalIcon className="w-6 h-6" />
                 </Button>

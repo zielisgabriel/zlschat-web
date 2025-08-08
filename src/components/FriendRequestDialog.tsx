@@ -3,7 +3,7 @@
 import { CheckIcon, UsersIcon, XIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Button } from "./ui/button";
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import { ApplicationContext } from "@/contexts/ApplicationContext";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { ScrollArea } from "./ui/scroll-area";
@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 
 export function FriendRequestDialog() {
     const { profile } = useContext(ApplicationContext);
+    const [requestFriends, setRequestFriends] = useState<string[]>([]);
 
     async function onAcceptFriendship(username: string) {
         try {
@@ -19,6 +20,7 @@ export function FriendRequestDialog() {
             if (response.status !== 200) {
                 throw new Error(response.data.message);
             }
+            setRequestFriends(requestFriends.filter(friend => friend !== username));
             toast.success("Amizade aceita!");
         } catch (error: any) {
             toast.error(error.message);
@@ -31,11 +33,17 @@ export function FriendRequestDialog() {
             if (response.status !== 200) {
                 throw new Error(response.data.message);
             }
+            setRequestFriends(requestFriends.filter(friend => friend !== username));
             toast.success("Amizade recusada!");
         } catch (error: any) {
             toast.error(error.message);
         }
     }
+
+    useEffect(() => {
+        if (!profile) return;
+        setRequestFriends(profile.friendRequests);
+    }, [profile]);
 
     return (
         <Dialog>
@@ -43,7 +51,7 @@ export function FriendRequestDialog() {
             <Button className="relative">
               <UsersIcon className="w-2 h-2" />
               {
-                profile && profile.friendRequests.length > 0 && (
+                requestFriends.length > 0 && (
                     <span className="w-4 h-4 rounded-full bg-red-500 absolute -right-1 -top-1" />
                 )
               }
@@ -57,7 +65,7 @@ export function FriendRequestDialog() {
 
             <ScrollArea className="flex flex-col gap-2 mt-4 h-100">
                 {
-                    profile && profile.friendRequests.length > 0 ? (
+                    profile && requestFriends.length > 0 ? (
                         profile.friendRequests.map((friendRequest, index) => {
                             return (
                                 <div key={index} className="flex">

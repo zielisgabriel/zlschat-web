@@ -8,6 +8,7 @@ import { Client } from "@stomp/stompjs";
 import { usePathname } from "next/navigation";
 import { createContext, ReactNode, RefObject, useEffect, useRef, useState } from "react";
 import SockJS from "sockjs-client";
+import { toast } from "sonner";
 
 interface ChatOpenType {
     chatRoom: ChatRoom,
@@ -30,12 +31,21 @@ export function ApplicationContextProvider({ children }: { children: ReactNode }
     const pathname = usePathname();
 
     async function onLoadProfileAuthenticated() {
-        const response = await api.get("/api/user/me");
-        setProfile(response.data);
+        try {
+            const response = await api.get("/api/user/me");
+
+            if (response.status !== 200) {
+                throw new Error(response.data.message);
+            }
+
+            setProfile(response.data);
+        } catch (error: any) {
+            toast.error(error.message);
+        }
     }
 
     async function onLoadChatAndMessagesInChat(chatRoomId: string) {
-        const responseChatRoom = await api.get(`/api/chat/find/${chatRoomId}`);
+        const responseChatRoom = chatAndMessagesInChat?.chatRoom.id === chatRoomId ? { data: chatAndMessagesInChat.chatRoom } : await api.get(`/api/chat/find/${chatRoomId}`);
         const responseMessages = await api.get(`/api/messages/${chatRoomId}`);
         setChatAndMessagesInChat({
             chatRoom: responseChatRoom.data,
@@ -50,18 +60,25 @@ export function ApplicationContextProvider({ children }: { children: ReactNode }
     }, [pathname]);
 
     useEffect(() => {
-        const client = new Client({
-            brokerURL: undefined,
-            webSocketFactory: () => new SockJS(process.env.NEXT_PUBLIC_API_WEBSOCKET_URL!),
-            reconnectDelay: 5000,
-        });
+        if (!PUBLIC_PATHS.some(path => pathname.startsWith(path))) {
+            const client = new Client({
+                brokerURL: undefined,
+                webSocketFactory: () => new SockJS(process.env.NEXT_PUBLIC_API_WEBSOCKET_URL!),
+                reconnectDelay: 5000,
+                onConnect: async () => {
+                    if (chatAndMessagesInChat) {
+                        await onLoadChatAndMessagesInChat(chatAndMessagesInChat.chatRoom.id!);
+                    }
+                }
+            });
 
-        client.activate();
-        clientRef.current = client;
+            client.activate();
+            clientRef.current = client;
 
-        return () => {
-            client.deactivate();
-            clientRef.current = null;
+            return () => {
+                client.deactivate();
+                clientRef.current = null;
+            }
         }
     }, []);
 

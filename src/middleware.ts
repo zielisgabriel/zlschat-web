@@ -17,6 +17,7 @@ export async function middleware(request: NextRequest) {
             await jwtVerify(jwtToken, SECRET, { algorithms: ["HS256"], issuer: "zlschat" });
             return NextResponse.next();
         } catch {
+            request.cookies.delete("sessiontoken");
             return NextResponse.redirect(new URL("/login", request.url));
         }
     }
@@ -26,7 +27,8 @@ export async function middleware(request: NextRequest) {
             await jwtVerify(jwtToken, SECRET, { algorithms: ["HS256"] });
             return NextResponse.redirect(new URL("/", request.url));
         } catch (e: any) {
-            console.error("Error: ", e);
+            request.cookies.delete("sessiontoken");
+            console.error(e);
             return NextResponse.next();
         }
     }

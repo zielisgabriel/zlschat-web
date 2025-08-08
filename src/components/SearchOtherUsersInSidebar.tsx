@@ -23,7 +23,7 @@ type SearchFriendOrProfileType = z.infer<typeof searchFriendOrProfileSchema>;
 
 export function SearchOtherUsersInSidebar() {
     const {profile} = useContext(ApplicationContext);
-    const [otherUsers, setOtherUsers] = useState<User[]>([]);
+    const [otherUsers, setOtherUsers] = useState<User[] | null>([]);
     const [isLoadingOtherUsers, setIsLoadingOtherUsers] = useState<boolean>(false);
     const form = useForm<SearchFriendOrProfileType>({
         resolver: zodResolver(searchFriendOrProfileSchema),
@@ -41,6 +41,7 @@ export function SearchOtherUsersInSidebar() {
             if (response.status !== 200) {
                 throw new Error(response.data.message);
             }
+            console.log(response.data);
             setOtherUsers(response.data);
             setIsLoadingOtherUsers(false);
         } catch (error: any) {
@@ -104,35 +105,37 @@ export function SearchOtherUsersInSidebar() {
                             <Spinner className="w-4 h-4" />
                         </div>
                     ) : (
-                        otherUsers.length > 0 ? (
+                        otherUsers && otherUsers.length > 0 ? (
                             otherUsers.map((otherUser, index) => (
-                                <SidebarMenuItem key={index}>
-                                    <div className="flex justify-between items-center">
-                                        <div className="flex gap-2 items-center px-2">
-                                            <Avatar>
-                                                <AvatarFallback>
-                                                    {otherUser.username.toUpperCase().charAt(0)}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <span>
-                                                {otherUser.username}
-                                            </span>
-                                        </div>
+                                otherUser.username !== profile?.username && (
+                                    <SidebarMenuItem key={index}>
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex gap-2 items-center px-2">
+                                                <Avatar>
+                                                    <AvatarFallback>
+                                                        {otherUser.username.toUpperCase().charAt(0)}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <span>
+                                                    {otherUser.username}
+                                                </span>
+                                            </div>
 
-                                        {
-                                            profile?.friends.includes(otherUser.username) ? (
-                                                <CheckIcon className="w-4 h-4" />
-                                            ) : (
-                                                <Button
-                                                    onClick={() => onRequestFriendship(otherUser.username)}
-                                                    className="w-7 h-7 rounded-full cursor-pointer"
-                                                >
-                                                    <PlusIcon className="w-3 h-3" />
-                                                </Button>
-                                            )
-                                        }
-                                    </div>
-                                </SidebarMenuItem>
+                                            {
+                                                profile?.friends.includes(otherUser.username) ? (
+                                                    <CheckIcon className="w-4 h-4" />
+                                                ) : (
+                                                    <Button
+                                                        onClick={() => onRequestFriendship(otherUser.username)}
+                                                        className="w-7 h-7 rounded-full cursor-pointer"
+                                                    >
+                                                        <PlusIcon className="w-3 h-3" />
+                                                    </Button>
+                                                )
+                                            }
+                                        </div>
+                                    </SidebarMenuItem>
+                                )
                             ))
                         ) : (
                             <div className="flex items-center justify-center">

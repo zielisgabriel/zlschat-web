@@ -11,6 +11,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { motion, AnimatePresence } from "framer-motion";
 import { Spinner } from "./ui/shadcn-io/spinner";
 import clsx from "clsx";
+import { toast } from "sonner";
 
 export function ChatBox() {
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -19,23 +20,27 @@ export function ChatBox() {
     const { profile, chatAndMessagesInChat, clientRef } = useContext(ApplicationContext);
 
     function onSendMessage(message: string) {
-        if (!profile || !chatAndMessagesInChat || !clientRef.current) {
-            throw new Error("Erro ao enviar mensagem");
-        };
+        try {
+            if (!profile || !chatAndMessagesInChat || !clientRef.current) {
+                throw new Error("Erro ao enviar mensagem");
+            };
 
-        const messageToSend: Message = {
-            chatRoomId: chatAndMessagesInChat.chatRoom.id!,
-            senderUsername: profile.username,
-            receiverUsername: chatAndMessagesInChat.chatRoom.usersInChat.filter(user => user !== profile.username)[0],
-            content: message,
+            const messageToSend: Message = {
+                chatRoomId: chatAndMessagesInChat.chatRoom.id!,
+                senderUsername: profile.username,
+                receiverUsername: chatAndMessagesInChat.chatRoom.usersInChat.filter(user => user !== profile.username)[0],
+                content: message,
+            }
+
+            setMessages(prevMessages => [...prevMessages, messageToSend]);
+
+            clientRef.current.publish({
+                destination: "/app/send.message",
+                body: JSON.stringify(messageToSend),
+            });
+        } catch (error: any) {
+            toast.error(error.message);
         }
-
-        setMessages(prevMessages => [...prevMessages, messageToSend]);
-
-        clientRef.current.publish({
-            destination: "/app/send.message",
-            body: JSON.stringify(messageToSend),
-        });
     }
 
     useEffect(() => {
