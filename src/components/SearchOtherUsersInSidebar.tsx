@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useContext, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import z from "zod";
+import z, { set } from "zod";
 import { SidebarMenuItem } from "./ui/sidebar";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { ApplicationContext } from "@/contexts/ApplicationContext";
@@ -14,17 +14,24 @@ import { Button } from "./ui/button";
 import { Form, FormControl, FormField, FormItem } from "./ui/form";
 import { Input } from "./ui/input";
 import { Spinner } from "./ui/shadcn-io/spinner";
+import { request } from "http";
 
 const searchFriendOrProfileSchema = z.object({
     username: z.string(),
 });
 
+interface SendingRequestFriendshipProps {
+    username: string;
+    isSent: boolean;
+}
+
 type SearchFriendOrProfileType = z.infer<typeof searchFriendOrProfileSchema>;
 
 export function SearchOtherUsersInSidebar() {
-    const {profile} = useContext(ApplicationContext);
+    const {profile, clientRef} = useContext(ApplicationContext);
     const [otherUsers, setOtherUsers] = useState<User[] | null>([]);
     const [isLoadingOtherUsers, setIsLoadingOtherUsers] = useState<boolean>(false);
+    const [sendingRequestFriendship, setSendingRequestFriendship] = useState<SendingRequestFriendshipProps[]>([]);
     const form = useForm<SearchFriendOrProfileType>({
         resolver: zodResolver(searchFriendOrProfileSchema),
         defaultValues: {
@@ -41,7 +48,6 @@ export function SearchOtherUsersInSidebar() {
             if (response.status !== 200) {
                 throw new Error(response.data.message);
             }
-            console.log(response.data);
             setOtherUsers(response.data);
             setIsLoadingOtherUsers(false);
         } catch (error: any) {
@@ -50,14 +56,18 @@ export function SearchOtherUsersInSidebar() {
         }
     }
 
-    async function onRequestFriendship(username: string) {
+    async function onRequestFriendship(receiverUsername: string) {
+        if (!profile || !clientRef.current) return;
+        setSendingRequestFriendship(prev => [...(prev || []), { username: receiverUsername, isSent: false }]);
         try {
-            const response = await api.post(`/api/user/friends/request/${username}`)
+            const response = await api.post(`/api/user/friends/request/${receiverUsername}`);
             if (response.status !== 200) {
                 throw new Error(response.data.message);
             }
-            toast.success("Pedido de amizade enviado com sucesso!");
+            setSendingRequestFriendship(prev => prev?.map(request => request.username === receiverUsername ? { username: receiverUsername, isSent: true } : request) || null);
+            toast.success("Solicitação de amizade enviada!");
         } catch (error: any) {
+            setSendingRequestFriendship(prev => prev?.map(request => request.username === receiverUsername ? { username: receiverUsername, isSent: false } : request) || null);
             toast.error(error.message);
         }
     }
@@ -123,14 +133,44 @@ export function SearchOtherUsersInSidebar() {
 
                                             {
                                                 profile?.friends.includes(otherUser.username) ? (
-                                                    <CheckIcon className="w-4 h-4" />
-                                                ) : (
                                                     <Button
-                                                        onClick={() => onRequestFriendship(otherUser.username)}
                                                         className="w-7 h-7 rounded-full cursor-pointer"
+                                                        variant={"outline"}
                                                     >
-                                                        <PlusIcon className="w-3 h-3" />
+                                                        <CheckIcon className="w-4 h-4" />
                                                     </Button>
+                                                ) : (
+                                                    sendingRequestFriendship.find(request => request.username === otherUser.username) ? (
+                                                        sendingRequestFriendship.map((request, index) => (
+                                                            request.isSent ? (
+                                                                <Button
+                                                                    className="w-7 h-7 rounded-full cursor-pointer"
+                                                                    variant={"outline"}
+                                                                    key={index}
+                                                                >
+                                                                    <CheckIcon className="w-4 h-4" />
+                                                                </Button>
+                                                            ) : (
+                                                                <Spinner
+                                                                    key={index}
+                                                                    className="w-4 h-4"
+                                                                />
+                                                            )
+                                                        ))
+                                                    ) : (
+                                                        <Button
+                                                            className="w-7 h-7 rounded-full cursor-pointer"
+                                                            asChild
+                                                        >
+                                                            <button
+                                                                onClick={async () => {
+                                                                    await onRequestFriendship(otherUser.username)
+                                                                }}
+                                                            >
+                                                                <PlusIcon className="w-4 h-4" />
+                                                            </button>
+                                                        </Button>
+                                                    )
                                                 )
                                             }
                                         </div>
