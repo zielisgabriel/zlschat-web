@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, UsersIcon, XIcon } from "lucide-react";
+import { CheckIcon, RotateCwIcon, UsersIcon, XIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { useContext, useEffect, useState } from "react";
@@ -9,10 +9,13 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 import { ScrollArea } from "./ui/scroll-area";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { Separator } from "./ui/separator";
+import { Spinner } from "./ui/shadcn-io/spinner";
 
 export function FriendRequestDialog() {
-    const { profile } = useContext(ApplicationContext);
+    const { profile, onLoadProfileAuthenticated } = useContext(ApplicationContext);
     const [requestFriends, setRequestFriends] = useState<string[]>([]);
+    const [isLoadingRequestFriends, setIsLoadingRequestFriends] = useState<boolean>(false);
 
     async function onAcceptFriendship(username: string) {
         try {
@@ -40,10 +43,18 @@ export function FriendRequestDialog() {
         }
     }
 
-    useEffect(() => {
-        if (!profile) return;
-        setRequestFriends(profile.friendRequests);
-    }, [profile]);
+    async function onLoadRequestFriends() {
+        if (!profile) return null;
+        setIsLoadingRequestFriends(true);
+        try {
+            await onLoadProfileAuthenticated();
+            setRequestFriends(profile.friendRequests);
+            setIsLoadingRequestFriends(false);
+        } catch (error: any) {
+            setIsLoadingRequestFriends(false);
+            toast.error(error.message);
+        }
+    }
 
     return (
         <Dialog>
@@ -58,10 +69,26 @@ export function FriendRequestDialog() {
             </Button>
           </DialogTrigger>
 
-          <DialogContent>
+          <DialogContent className="pt-12">
             <DialogHeader>
-              <DialogTitle>Solicitação de amizade</DialogTitle>
+                <DialogTitle className="flex items-center justify-between">
+                    Solicitação de amizade
+                    <Button
+                        className="cursor-pointer"
+                        onClick={onLoadRequestFriends}
+                    >
+                        {
+                            isLoadingRequestFriends ? (
+                                <Spinner />
+                            ) : (
+                                <RotateCwIcon className="w-4 h-4" />
+                            )
+                        }
+                    </Button>
+                </DialogTitle>
             </DialogHeader>
+
+            <Separator />
 
             <ScrollArea className="flex flex-col gap-2 mt-4 h-100">
                 {
@@ -94,9 +121,15 @@ export function FriendRequestDialog() {
                             )
                         })
                     ) : (
-                        <span className="text-muted-foreground text-center">
-                            Você não tem solicitações de amizade
-                        </span>
+                        isLoadingRequestFriends ? (
+                            <div className="flex justify-center">
+                                <Spinner />
+                            </div>
+                        ) : (
+                            <span className="text-muted-foreground text-center">
+                                Você não tem solicitações de amizade
+                            </span>
+                        )
                     )
                 }
             </ScrollArea>
