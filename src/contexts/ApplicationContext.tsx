@@ -16,6 +16,7 @@ interface ChatOpenType {
 }
 
 interface ApplicationContextProps {
+    onLoadProfileAuthenticated: () => Promise<void>;
     profile: User | null;
     chatAndMessagesInChat: ChatOpenType | null;
     onLoadChatAndMessagesInChat: (chatRoomId: string) => Promise<void>;
@@ -82,8 +83,22 @@ export function ApplicationContextProvider({ children }: { children: ReactNode }
         }
     }, []);
 
+    useEffect(() => {
+        function handlerEscape(e: KeyboardEvent) {
+            if (chatAndMessagesInChat && e.key === "Escape") {
+                setChatAndMessagesInChat(null);
+            }
+        }
+
+        window.addEventListener("keydown", handlerEscape);
+
+        return () => {
+            window.removeEventListener("keydown", handlerEscape);
+        }
+    }, [chatAndMessagesInChat]);
+
     return (
-        <ApplicationContext.Provider value={{profile, clientRef, chatAndMessagesInChat, onLoadChatAndMessagesInChat}}>
+        <ApplicationContext.Provider value={{onLoadProfileAuthenticated, profile, clientRef, chatAndMessagesInChat, onLoadChatAndMessagesInChat}}>
             { children }
         </ApplicationContext.Provider>
     );
