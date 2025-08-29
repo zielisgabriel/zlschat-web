@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 const registerFormSchema = z.object({
     username: z.string().min(3, "O username deve ter no mínimo 3 caracteres"),
     email: z.email("Insira um email válido"),
-    password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
+    password: z.string().min(8, "A senha deve ter no mínimo 8 caracteres"),
 });
 
 type RegisterFormType = z.infer<typeof registerFormSchema>;
