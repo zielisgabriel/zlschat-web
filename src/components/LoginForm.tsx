@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 
 const loginFormSchema = z.object({
     email: z.email("Insira um email válido"),
-    password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
+    password: z.string().min(8, "A senha deve ter no mínimo 8 caracteres"),
 });
 
 type LoginFormType = z.infer<typeof loginFormSchema>;
